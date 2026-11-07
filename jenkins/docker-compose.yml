@@ -1,0 +1,18 @@
+# Servidor de integración continua: Jenkins en un contenedor.
+# Interfaz web: http://localhost:8081  (el 8080 lo usa la app del blog)
+name: jenkins
+
+services:
+  jenkins:
+    build: .
+    image: blog-jenkins
+    environment:
+      - JAVA_OPTS=-Xmx768m
+    ports:
+      - "127.0.0.1:8081:8080"
+    volumes:
+      # Configuración, jobs, credenciales y caché de Maven/Node de los builds
+      - jenkins_home:/var/jenkins_home
+
+volumes:
+  jenkins_home: {}

@@ -10,7 +10,8 @@ Aplicación **Blog** hecha con JHipster a partir de un modelo JDL, con tests de 
 ├── blog/        # App JHipster (Spring Boot + Angular), generada desde blog/blog.jh
 ├── deploy/      # Deploy en Docker: app + PostgreSQL + ELK
 ├── blog-pwa/    # PWA en Ionic + Angular que consume la API (service worker con Workbox)
-└── ...          # (se completa a medida que avanza el trabajo)
+├── jenkins/     # Servidor de integración continua (Jenkins en Docker)
+└── Jenkinsfile  # Pipeline: tests de unidad → imagen Docker → Docker Hub
 ```
 
 ## Requisitos
@@ -24,7 +25,7 @@ Aplicación **Blog** hecha con JHipster a partir de un modelo JDL, con tests de 
 | 5 | Servidor de logs (ELK) que tome los logs en Docker | ✅ | [deploy/](deploy/) |
 | 6 | Aplicación progresiva en Ionic que consuma la API de JHipster | ✅ | [blog-pwa/](blog-pwa/) |
 | 7 | La app Ionic como PWA que funcione sin conexión | ✅ | [workbox-config.cjs](blog-pwa/workbox-config.cjs) |
-| 8 | Integración continua con Jenkins que genere la imagen Docker y la publique en Docker Hub | Pendiente | |
+| 8 | Integración continua con Jenkins que genere la imagen Docker y la publique en Docker Hub | ✅ | [Jenkinsfile](Jenkinsfile), [jenkins/](jenkins/) |
 
 ## 1. App JHipster
 
@@ -202,3 +203,63 @@ Con la app JHipster corriendo (en Docker o con `./mvnw`):
 Abrir **http://localhost:8100** en Chrome (con `localhost`, no `127.0.0.1`, por el CORS) e ingresar con `admin` / `admin`. El service worker solo se genera en el build de producción, por eso se sirve con `http-server` y no con `ng serve`.
 
 Para probar el modo sin conexión: F12 → **Application** → *Service workers* (debe figurar `sw.js` activo) y *Cache storage* (`workbox-precache-…` y `api-blog`); después **Network** → *Offline* y recargar: la app abre igual y muestra los posts guardados.
+
+## 8. Integración continua con Jenkins
+
+Jenkins corre en un contenedor ([`jenkins/`](jenkins/)) y ejecuta el pipeline definido en el [`Jenkinsfile`](Jenkinsfile) de la raíz del repositorio:
+
+| Etapa | Qué hace |
+|-------|----------|
+| **Checkout** | Baja el código del repositorio de GitHub |
+| **Tests de unidad** | `./mvnw test`: corre los 54 tests de unidad del backend (incluidos los dos del requisito 2) y publica el reporte en Jenkins |
+| **Imagen Docker → Docker Hub** | Con **Jib** construye la imagen de la app en perfil prod (backend + frontend) y la sube a Docker Hub como [`guadayanez/blog`](https://hub.docker.com/r/guadayanez/blog), con el número de build y `latest` |
+
+- **Cuándo corre:** Jenkins revisa el repositorio cada 5 minutos (`pollSCM`) y corre el pipeline si hay commits nuevos en `main`. También se puede lanzar a mano con **Build Now**.
+- **Por qué Jib:** sube la imagen directo al registro sin necesitar Docker dentro de Jenkins, así el contenedor de Jenkins es más simple y no necesita acceso al Docker de la máquina.
+- **Credenciales:** el token de Docker Hub se guarda como credencial de Jenkins (`dockerhub`) y el pipeline lo usa con `withCredentials`, así nunca queda escrito en el código ni en el log.
+
+### Cómo configurarlo (una sola vez)
+
+**1. Levantar Jenkins** (la primera vez construye la imagen con los plugins):
+
+    cd jenkins
+    docker compose up -d --build
+
+**2. Desbloquearlo.** Abrir http://localhost:8081 y pegar la contraseña inicial, que se obtiene con:
+
+    docker compose exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+
+Después elegir **Install suggested plugins** y crear el usuario administrador.
+
+**3. Crear el token de Docker Hub.** En https://hub.docker.com → Account settings → **Personal access tokens** → *Generate new token*, con permiso **Read & Write**. Copiar el token (se muestra una sola vez).
+
+**4. Cargar la credencial en Jenkins.** *Manage Jenkins* → **Credentials** → *System* → *Global credentials* → **Add Credentials**:
+
+| Campo | Valor |
+|-------|-------|
+| Kind | Username with password |
+| Username | `guadayanez` |
+| Password | el token de Docker Hub |
+| ID | `dockerhub` |
+
+**5. Crear el job.** *New Item* → nombre `blog` → **Pipeline** → en la sección *Pipeline*:
+
+| Campo | Valor |
+|-------|-------|
+| Definition | Pipeline script from SCM |
+| SCM | Git |
+| Repository URL | `https://github.com/GuadalupeYz/IngSwApp-Ya-ez.git` |
+| Branch Specifier | `*/main` |
+| Script Path | `Jenkinsfile` |
+
+**6. Correrlo** con **Build Now**. La primera vez tarda varios minutos, porque baja las dependencias de Maven y Node. Al terminar:
+
+- En Jenkins, las tres etapas en verde y el reporte de tests (*Test Result*).
+- En Docker Hub, la imagen `guadayanez/blog` con los tags del build y `latest`.
+
+### Desplegar la imagen publicada
+
+El deploy del requisito 4 puede usar la imagen de Docker Hub en lugar de la construida localmente:
+
+    cd deploy
+    BLOG_IMAGE=guadayanez/blog:latest docker compose up -d
