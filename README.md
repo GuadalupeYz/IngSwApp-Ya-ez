@@ -16,7 +16,7 @@ Aplicación **Blog** hecha con JHipster a partir de un modelo JDL, con tests de 
 | # | Requisito | Estado | Dónde |
 |---|-----------|--------|-------|
 | 1 | App JHipster basada en un modelo JDL | ✅ | [blog/](blog/) — modelo [blog.jh](blog/blog.jh), basado en [jdl-samples](https://github.com/jhipster/jdl-samples/blob/main/blog.jh) |
-| 2 | Dos tests de unidad | Pendiente | |
+| 2 | Dos tests de unidad | ✅ | [ValidacionEntidadesTest.java](blog/src/test/java/ar/edu/um/blog/domain/ValidacionEntidadesTest.java) |
 | 3 | Tres tests E2E en Cypress (con login por API) | Pendiente | |
 | 4 | Deploy en Docker | Pendiente | |
 | 5 | Servidor de logs (ELK) que tome los logs en Docker | Pendiente | |
@@ -57,3 +57,19 @@ Requiere Java 21. La primera vez descarga las dependencias y Node, y compila el 
     ./mvnw
 
 Queda en http://localhost:8080 (usuario `admin`, contraseña `admin`).
+
+## 2. Tests de unidad
+
+[`ValidacionEntidadesTest.java`](blog/src/test/java/ar/edu/um/blog/domain/ValidacionEntidadesTest.java) prueba que las reglas del modelo JDL se cumplan en las entidades. Son tests **de unidad**: no levantan Spring ni la base de datos, usan directamente el validador de Bean Validation (JUnit 5 + AssertJ).
+
+| Test | Regla del JDL | Qué comprueba |
+|------|---------------|---------------|
+| `postSinTituloNoEsValido` | `title String required` | Un Post sin título tiene exactamente un error, en `title`; con título, ninguno |
+| `blogConNombreCortoNoEsValido` | `name String required minlength(3)` | Un Blog con nombre `"ab"` tiene un error en `name`; con `"abc"`, ninguno |
+
+Para ejecutarlos:
+
+    cd blog
+    ./mvnw test -Dtest=ValidacionEntidadesTest
+
+Resultado esperado: `Tests run: 2, Failures: 0, Errors: 0`.
