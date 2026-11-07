@@ -1,0 +1,23 @@
+{
+  "generator-jhipster": {
+    "applicationType": "monolith",
+    "authenticationType": "jwt",
+    "baseName": "blog",
+    "buildTool": "maven",
+    "cacheProvider": "no",
+    "clientFramework": "angular",
+    "creationTimestamp": 1702098984193,
+    "databaseType": "sql",
+    "devDatabaseType": "h2Disk",
+    "enableHibernateCache": false,
+    "entities": ["Blog", "Post", "Tag"],
+    "jhipsterVersion": "9.4.0",
+    "jwtSecretKey": "N2M5NTA5M2UwN2M1YWVmYzBiZWYwM2FkMGU5NDdmYjhlZTgzOTcwNzM4MmM4ZmQ2NGRmMzAyODkwYjk5MmYxM2Q0ZjE5NjkxMDdmMjkxZDdiN2NjMWE1NGIwNWIxN2Q5OTY1NmViYTZlNGRmMzU3MDkwMjM3ODk3NjRhZjc1M2E=",
+    "languages": ["es", "en"],
+    "lastLiquibaseTimestamp": 1702099164000,
+    "nativeLanguage": "es",
+    "packageName": "ar.edu.um.blog",
+    "prodDatabaseType": "postgresql",
+    "testFrameworks": ["cypress"]
+  }
+}
