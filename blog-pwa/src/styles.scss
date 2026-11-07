@@ -1,0 +1,16 @@
+/* Estilos base de Ionic */
+@import '@ionic/angular/css/core.css';
+@import '@ionic/angular/css/normalize.css';
+@import '@ionic/angular/css/structure.css';
+@import '@ionic/angular/css/typography.css';
+@import '@ionic/angular/css/padding.css';
+@import '@ionic/angular/css/flex-utils.css';
+@import '@ionic/angular/css/display.css';
+
+:root {
+  --ion-color-primary: #8a1538;
+  --ion-color-primary-rgb: 138, 21, 56;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-shade: #791231;
+  --ion-color-primary-tint: #962c4c;
+}

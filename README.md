@@ -9,6 +9,7 @@ Aplicación **Blog** hecha con JHipster a partir de un modelo JDL, con tests de 
 ```
 ├── blog/        # App JHipster (Spring Boot + Angular), generada desde blog/blog.jh
 ├── deploy/      # Deploy en Docker: app + PostgreSQL + ELK
+├── blog-pwa/    # PWA en Ionic + Angular que consume la API (service worker con Workbox)
 └── ...          # (se completa a medida que avanza el trabajo)
 ```
 
@@ -21,8 +22,8 @@ Aplicación **Blog** hecha con JHipster a partir de un modelo JDL, con tests de 
 | 3 | Tres tests E2E en Cypress (con login por API) | ✅ | [blog/src/test/javascript/cypress/e2e/blog/](blog/src/test/javascript/cypress/e2e/blog/) |
 | 4 | Deploy en Docker | ✅ | [deploy/docker-compose.yml](deploy/docker-compose.yml) |
 | 5 | Servidor de logs (ELK) que tome los logs en Docker | ✅ | [deploy/](deploy/) |
-| 6 | Aplicación progresiva en Ionic que consuma la API de JHipster | Pendiente | |
-| 7 | La app Ionic como PWA que funcione sin conexión | Pendiente | |
+| 6 | Aplicación progresiva en Ionic que consuma la API de JHipster | ✅ | [blog-pwa/](blog-pwa/) |
+| 7 | La app Ionic como PWA que funcione sin conexión | ✅ | [workbox-config.cjs](blog-pwa/workbox-config.cjs) |
 | 8 | Integración continua con Jenkins que genere la imagen Docker y la publique en Docker Hub | Pendiente | |
 
 ## 1. App JHipster
@@ -163,3 +164,41 @@ Kibana → menú → **Discover** → data view **Logs de JHipster**:
 | `usuario : "admin"` | Todo lo que hizo un usuario |
 | `postId : *` | Los posts creados y borrados |
 | `level : "WARN" or level : "ERROR"` | Todo lo que merece atención |
+
+## 6. Aplicación Ionic que consume la API
+
+[`blog-pwa/`](blog-pwa/) es una app **Ionic 9 + Angular 21** que consume la API REST de la app JHipster: permite iniciar sesión, ver los posts y publicar uno nuevo.
+
+| Acción | Llamada a la API de JHipster |
+|--------|------------------------------|
+| Login | `POST /api/authenticate`: devuelve un **JWT** que se guarda en `localStorage` |
+| Listar posts | `GET /api/posts?sort=date,desc` |
+| Listar blogs (para el formulario) | `GET /api/blogs` |
+| Publicar un post | `POST /api/posts` |
+
+- Un **interceptor HTTP** ([`auth.interceptor.ts`](blog-pwa/src/app/services/auth.interceptor.ts)) agrega `Authorization: Bearer <token>` a cada pedido, y un **guard** ([`auth.guard.ts`](blog-pwa/src/app/services/auth.guard.ts)) manda al login si no hay sesión.
+- La URL de la API está en [`api.config.ts`](blog-pwa/src/app/api.config.ts) (`http://localhost:8080/api`).
+- **CORS:** la app JHipster acepta pedidos desde `http://localhost:8100`, el puerto de la PWA. En desarrollo viene así por defecto; en Docker se configura con las variables `JHIPSTER_CORS_*` del compose.
+
+## 7. PWA que funciona sin conexión (Workbox)
+
+El service worker se genera con **[Workbox](https://developer.chrome.com/docs/workbox)** a partir de [`workbox-config.cjs`](blog-pwa/workbox-config.cjs), después de compilar la app (`ng build && workbox generateSW`), y se registra en [`main.ts`](blog-pwa/src/main.ts) con `workbox-window`.
+
+| Qué guarda | Estrategia | Para qué |
+|------------|------------|----------|
+| La app (HTML, JS, CSS, íconos, manifest) | **Precaché** al instalar el service worker (44 archivos, ~1,2 MB) | Que la app abra sin conexión |
+| Respuestas de `/api/posts` y `/api/blogs` | **NetworkFirst**: primero la red; si no hay conexión o tarda más de 5 s, lo guardado (hasta 100 respuestas, 3 días) | Ver los últimos datos aunque no haya conexión |
+
+Además, el [manifest](blog-pwa/public/manifest.webmanifest) (nombre, íconos, colores y `display: standalone`) permite **instalarla** como una app, y la pantalla de posts muestra un aviso cuando no hay conexión y deshabilita el botón de publicar.
+
+### Cómo ejecutarla
+
+Con la app JHipster corriendo (en Docker o con `./mvnw`):
+
+    cd blog-pwa
+    npm install
+    npm run serve:pwa
+
+Abrir **http://localhost:8100** en Chrome (con `localhost`, no `127.0.0.1`, por el CORS) e ingresar con `admin` / `admin`. El service worker solo se genera en el build de producción, por eso se sirve con `http-server` y no con `ng serve`.
+
+Para probar el modo sin conexión: F12 → **Application** → *Service workers* (debe figurar `sw.js` activo) y *Cache storage* (`workbox-precache-…` y `api-blog`); después **Network** → *Offline* y recargar: la app abre igual y muestra los posts guardados.
