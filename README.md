@@ -17,7 +17,7 @@ Aplicación **Blog** hecha con JHipster a partir de un modelo JDL, con tests de 
 |---|-----------|--------|-------|
 | 1 | App JHipster basada en un modelo JDL | ✅ | [blog/](blog/) — modelo [blog.jh](blog/blog.jh), basado en [jdl-samples](https://github.com/jhipster/jdl-samples/blob/main/blog.jh) |
 | 2 | Dos tests de unidad | ✅ | [ValidacionEntidadesTest.java](blog/src/test/java/ar/edu/um/blog/domain/ValidacionEntidadesTest.java) |
-| 3 | Tres tests E2E en Cypress (con login por API) | Pendiente | |
+| 3 | Tres tests E2E en Cypress (con login por API) | ✅ | [blog/src/test/javascript/cypress/e2e/blog/](blog/src/test/javascript/cypress/e2e/blog/) |
 | 4 | Deploy en Docker | Pendiente | |
 | 5 | Servidor de logs (ELK) que tome los logs en Docker | Pendiente | |
 | 6 | Aplicación progresiva en Ionic que consuma la API de JHipster | Pendiente | |
@@ -73,3 +73,25 @@ Para ejecutarlos:
     ./mvnw test -Dtest=ValidacionEntidadesTest
 
 Resultado esperado: `Tests run: 2, Failures: 0, Errors: 0`.
+
+## 3. Tests E2E con Cypress
+
+Los tres tests están en [`blog/src/test/javascript/cypress/e2e/blog/`](blog/src/test/javascript/cypress/e2e/blog/). Los tres **inician sesión por API** con el comando `cy.login` (que hace `POST /api/authenticate` y guarda el token JWT, sin pasar por la pantalla de login) y después prueban una funcionalidad desde la interfaz:
+
+| Test | Qué hace | Qué comprueba |
+|------|----------|---------------|
+| `01-crear-blog.cy.ts` | Crea un Blog desde el formulario | La API responde 201 y el blog aparece en la lista |
+| `02-crear-post.cy.ts` | Crea un Blog **por API** y después un Post asignado a ese blog desde el formulario; abre su detalle | La API responde 201 y el detalle muestra título, contenido y blog |
+| `03-crear-y-borrar-tag.cy.ts` | Crea un Tag, lo busca en la lista y lo borra confirmando el diálogo | Aparece en la lista; después del borrado ya no aparece y la API responde 404 |
+
+Cada test limpia por API lo que creó, para poder repetirse. Como en desarrollo JHipster carga datos de ejemplo y las listas muestran 20 elementos del más viejo al más nuevo, los tests ordenan la lista por ID (clic en la cabecera) para encontrar el registro recién creado.
+
+Los tests de ejemplo que genera JHipster se borraron para dejar solo estos tres.
+
+Para ejecutarlos, con la app corriendo (`./mvnw`) en otra terminal:
+
+    cd blog
+    npx cypress open      # modo interactivo: E2E Testing → Chrome → elegir el test
+    npm run e2e:headless  # los tres, sin ventana
+
+Resultado esperado: `All specs passed!` con 3 tests.
