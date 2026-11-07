@@ -3,6 +3,7 @@ package ar.edu.um.blog.web.rest;
 import static ar.edu.um.blog.security.SecurityUtils.AUTHORITIES_CLAIM;
 import static ar.edu.um.blog.security.SecurityUtils.JWT_ALGORITHM;
 import static ar.edu.um.blog.security.SecurityUtils.USER_ID_CLAIM;
+import static net.logstash.logback.argument.StructuredArguments.kv;
 
 import ar.edu.um.blog.security.DomainUserDetailsService.UserWithId;
 import ar.edu.um.blog.web.rest.vm.LoginVM;
@@ -21,6 +22,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.JwsHeader;
@@ -57,7 +59,15 @@ public class AuthenticateController {
     public ResponseEntity<JWTToken> authorize(@Valid @RequestBody LoginVM loginVM) {
         var authenticationToken = new UsernamePasswordAuthenticationToken(loginVM.getUsername(), loginVM.getPassword());
 
-        var authentication = authenticationManagerBuilder.getObject().authenticate(authenticationToken);
+        Authentication authentication;
+        try {
+            authentication = authenticationManagerBuilder.getObject().authenticate(authenticationToken);
+        } catch (AuthenticationException e) {
+            // Evento de seguridad: se registra el usuario y el motivo, nunca la contraseña
+            LOG.warn("Login fallido {} {}", kv("usuario", loginVM.getUsername()), kv("motivo", e.getClass().getSimpleName()));
+            throw e;
+        }
+        LOG.info("Login exitoso {}", kv("usuario", loginVM.getUsername()));
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String jwt = this.createToken(authentication, loginVM.isRememberMe());
         var httpHeaders = new HttpHeaders();

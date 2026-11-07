@@ -1,5 +1,7 @@
 package ar.edu.um.blog.web.rest;
 
+import static net.logstash.logback.argument.StructuredArguments.kv;
+
 import ar.edu.um.blog.domain.Post;
 import ar.edu.um.blog.repository.PostRepository;
 import ar.edu.um.blog.web.rest.errors.BadRequestAlertException;
@@ -60,6 +62,8 @@ public class PostResource {
             throw new BadRequestAlertException("A new post cannot already have an ID", ENTITY_NAME, "idexists");
         }
         post = postRepository.save(post);
+        // Log de negocio con contexto: kv() agrega postId y blogId como campos propios en Elasticsearch
+        LOG.info("Post creado {} {}", kv("postId", post.getId()), kv("blogId", post.getBlog() != null ? post.getBlog().getId() : null));
         return ResponseEntity.created(new URI("/api/posts/" + post.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, post.getId().toString()))
             .body(post);
@@ -186,7 +190,11 @@ public class PostResource {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePost(@PathVariable("id") Long id) {
         LOG.debug("REST request to delete Post : {}", id);
+        if (!postRepository.existsById(id)) {
+            LOG.warn("Se intentó borrar un post que no existe {}", kv("postId", id));
+        }
         postRepository.deleteById(id);
+        LOG.info("Post borrado {}", kv("postId", id));
         return ResponseEntity.noContent()
             .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id.toString()))
             .build();
